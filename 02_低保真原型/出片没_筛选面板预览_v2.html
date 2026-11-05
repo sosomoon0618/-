@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>出片没｜筛选面板预览 v2</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e5e5e5; color: #171717; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    button { font: inherit; cursor: pointer; }
+    .shell { width: min(390px, 100vw); height: 844px; margin: 24px auto; position: relative; overflow: hidden; border: 1px solid #404040; border-radius: 22px; background: #fff; }
+    .library { padding: 18px 16px; opacity: .42; }
+    .header { display: flex; align-items: center; justify-content: space-between; font-size: 20px; font-weight: 700; }
+    .import, .apply { min-height: 40px; padding: 0 18px; border: 1px solid #262626; background: #262626; color: #fff; }
+    .search { margin-top: 16px; border: 1px solid #737373; padding: 10px 12px; color: #525252; }
+    .chips { display: flex; gap: 8px; overflow: hidden; margin-top: 12px; }
+    .chip { min-height: 34px; padding: 0 12px; border: 1px solid #a3a3a3; border-radius: 999px; background: #fff; white-space: nowrap; }
+    .chip.selected { border-color: #262626; background: #262626; color: #fff; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+    .card { height: 154px; border: 1px solid #737373; background: #d4d4d4; }
+    .mask { position: absolute; inset: 0; background: rgba(0,0,0,.38); display: flex; align-items: flex-end; }
+    .sheet { width: 100%; max-height: 78%; overflow-y: auto; background: #fff; border-top: 1px solid #404040; padding: 18px 16px 24px; }
+    .sheet-header { display: flex; justify-content: space-between; align-items: center; }
+    .sheet-header h1 { margin: 0; font-size: 18px; }
+    .close, .clear { min-height: 40px; border: 1px solid #404040; background: #fff; padding: 0 14px; }
+    .group { padding: 16px 0; border-top: 1px solid #d4d4d4; }
+    .group:first-of-type { border-top: 0; }
+    .group h2 { margin: 0 0 10px; font-size: 14px; }
+    .options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 16px; border-top: 1px solid #a3a3a3; }
+  </style>
+</head>
+<body>
+  <main class="shell" aria-label="出片没筛选面板预览">
+    <section class="library">
+      <div class="header"><span>姿势库</span><button class="import">导入</button></div>
+      <div class="search">搜索地点、动作或灵感</div>
+      <div class="chips"><button class="chip">地点/点位</button><button class="chip">人数</button><button class="chip">景别</button><button class="chip">动作</button></div>
+      <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>
+    </section>
+    <section class="mask">
+      <div class="sheet">
+        <div class="sheet-header"><h1>筛选</h1><button class="close" data-action="close">关闭</button></div>
+        <div id="groups"></div>
+        <div class="actions"><button class="clear" data-action="clear">清除</button><button class="apply" data-action="apply">应用</button></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const groups = [
+      { key: 'location', label: '地点 / 点位', options: ['环球影城', '北京', '水边', '咖啡馆', '游乐园'] },
+      { key: 'people', label: '人数', options: ['单人', '双人'] },
+      { key: 'crop', label: '景别', options: ['全身', '半身'] },
+      { key: 'action', label: '动作', options: ['回头', '坐', '站', '喝咖啡'] },
+      { key: 'keyword', label: '拍摄关键词', options: ['毕业', '香水', '朋友帮拍', '秋天'] },
+      { key: 'status', label: '整理状态', options: ['待整理', '已整理'], single: true }
+    ];
+    const selected = { location: [], people: [], crop: [], action: [], keyword: [], status: '' };
+    const groupsEl = document.querySelector('#groups');
+    function render() {
+      groupsEl.innerHTML = groups.map(group => {
+        const value = selected[group.key];
+        const noLimit = group.single ? !value : value.length === 0;
+        const option = item => group.single ? value === item : value.includes(item);
+        return `<section class="group"><h2>${group.label}</h2><div class="options"><button class="chip ${noLimit ? 'selected' : ''}" data-group="${group.key}" data-value="">不限</button>${group.options.map(item => `<button class="chip ${option(item) ? 'selected' : ''}" data-group="${group.key}" data-value="${item}">${item}</button>`).join('')}</div></section>`;
+      }).join('');
+    }
+    document.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      if (button.dataset.group) {
+        const key = button.dataset.group;
+        const value = button.dataset.value;
+        if (groups.find(group => group.key === key).single) selected[key] = value;
+        else selected[key] = value ? (selected[key].includes(value) ? selected[key].filter(item => item !== value) : [...selected[key], value]) : [];
+        render();
+      }
+      if (button.dataset.action === 'clear') { Object.assign(selected, { location: [], people: [], crop: [], action: [], keyword: [], status: '' }); render(); }
+      if (button.dataset.action === 'apply') alert('已应用筛选（原型演示）');
+      if (button.dataset.action === 'close') alert('已关闭，未应用本次选择（原型演示）');
+    });
+    render();
+  </script>
+</body>
+</html>

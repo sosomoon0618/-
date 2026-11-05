@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>出片没｜低保真交互原型 v2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e5e5e5; color: #171717; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 390px; height: 844px; margin: 24px auto; overflow: hidden; border: 1px solid #404040; border-radius: 22px; background: #fff; position: relative; }
+    .page { height: 100%; overflow-y: auto; padding: 18px 16px 88px; }
+    .btn { min-height: 40px; border: 1px solid #404040; background: #fff; padding: 0 12px; }
+    .btn-dark { background: #262626; color: #fff; }
+    .chip { border: 1px solid #a3a3a3; background: #fff; border-radius: 999px; padding: 5px 9px; white-space: nowrap; }
+    .chip.selected { background: #262626; color: #fff; border-color: #262626; }
+    .thumb { border: 1px solid #a3a3a3; background: #d4d4d4; min-height: 126px; position: relative; overflow: hidden; }
+    .thumb::before { content: ""; position: absolute; left: 43%; top: 19%; width: 22%; height: 63%; border: 2px solid #525252; border-radius: 50% 50% 20% 20%; }
+    .thumb::after { content: ""; position: absolute; left: 15%; right: 15%; top: 67%; border-top: 2px solid #737373; transform: rotate(-9deg); }
+    .thumb.variant-2::before { left: 28%; transform: rotate(-18deg); }
+    .thumb.variant-3::before { left: 57%; transform: rotate(18deg); }
+    .gridline { background-image: linear-gradient(to right, transparent 33.1%, #525252 33.1%, #525252 33.5%, transparent 33.5%, transparent 66.4%, #525252 66.4%, #525252 66.8%, transparent 66.8%), linear-gradient(to bottom, transparent 33.1%, #525252 33.1%, #525252 33.5%, transparent 33.5%, transparent 66.4%, #525252 66.4%, #525252 66.8%, transparent 66.8%); }
+    .modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 20; display: flex; align-items: end; }
+    .sheet { width: 100%; max-height: 75%; overflow-y: auto; background: #fff; border-top: 1px solid #404040; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+    .toast { position: absolute; left: 50%; bottom: 86px; transform: translateX(-50%); z-index: 40; max-width: 80%; background: #262626; color: #fff; padding: 9px 12px; text-align: center; }
+    .tabbar { height: 68px; position: absolute; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #a3a3a3; display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom); }
+    .tabbar button { border: 0; background: #fff; color: #525252; font-size: 12px; }
+    .tabbar button.active { color: #111; font-weight: 700; background: #e5e5e5; }
+    .proto { max-width: 780px; margin: 16px auto 0; border: 1px dashed #737373; padding: 10px; background: #f5f5f5; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .proto button { padding: 5px 8px; border: 1px solid #737373; background: #fff; }
+    .proto button.active { background: #262626; color: #fff; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+    .filter-group + .filter-group { border-top: 1px solid #d4d4d4; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <section class="proto" aria-label="原型状态控制条">
+    <strong>原型控制：</strong>
+    <span>H5 · 黑白灰线框</span>
+    <button data-proto="default" class="active">默认</button>
+    <button data-proto="empty-library">姿势库空态</button>
+    <button data-proto="no-results">筛选无结果</button>
+    <button data-proto="empty-themes">主题单空态</button>
+    <button data-proto="camera-denied">相机被拒绝</button>
+    <button data-proto="reset">重置演示</button>
+  </section>
+  <main class="shell" aria-label="出片没低保真交互原型">
+    <div id="app"></div>
+  </main>
+
+  <script>
+    const seedCards = [
+      { id: 1, title: '城堡前回头的全身照', tags: ['环球影城', '单人', '全身', '回头'], keywords: ['游乐园', '黑色大衣'], note: '下午光线柔和，适合黑色大衣。', v: 1, organized: true },
+      { id: 2, title: '水边坐姿', tags: ['水边', '双人', '半身', '坐'], keywords: ['朋友帮拍', '秋天'], note: '坐下后把身体侧一点。', v: 2, organized: false },
+      { id: 3, title: '咖啡馆侧身喝咖啡', tags: ['咖啡馆', '单人', '半身', '喝咖啡'], keywords: ['香水', '室内'], note: '', v: 3, organized: false },
+      { id: 4, title: '红墙前的回眸', tags: ['北京', '单人', '全身', '回头'], keywords: ['毕业', '红墙'], note: '适合下午有一点侧光。', v: 2, organized: true },
+      { id: 5, title: '毕业季在游乐园入口和朋友一起拍的全身构图参考', tags: ['游乐园', '双人', '全身', '站'], keywords: ['毕业', '朋友帮拍'], note: '', v: 1, organized: false }
+    ];
+    const seedThemes = [{ id: 1, name: '去环球影城', people: '我：牛仔外套\n小夏：黑色大衣', note: '下午去城堡附近，想拍一点松弛感。', cardIds: [1, 5] }, { id: 2, name: '北京的秋天', people: '', note: '', cardIds: [2, 4] }];
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const emptyFilters = () => ({ location: [], people: [], crop: [], action: [], keyword: [], status: '' });
+    const filterGroups = [
+      { key: 'location', label: '地点 / 点位', values: ['环球影城', '北京', '水边', '咖啡馆', '游乐园'] },
+      { key: 'people', label: '人数', values: ['单人', '双人'] },
+      { key: 'crop', label: '景别', values: ['全身', '半身'] },
+      { key: 'action', label: '动作', values: ['回头', '坐', '站', '喝咖啡'] },
+      { key: 'keyword', label: '拍摄关键词', values: ['游乐园', '毕业', '香水', '朋友帮拍', '秋天', '室内'] },
+      { key: 'status', label: '整理状态', values: ['待整理', '已整理'], mode: 'single' }
+    ];
+    let cards = clone(seedCards);
+    let themes = clone(seedThemes);
+    let state = { page: 'library', selectedCard: 1, selectedTheme: 1, modal: null, search: '', filters: emptyFilters(), filterDraft: null, grid: false, cameraGrid: false, opacity: 55, mirrored: false, timer: 0, proto: 'default', toast: '', form: { name: '', people: '', note: '' }, pickedThemeIds: [], draftCard: null, importFromThemeId: null, history: [] };
+    const $ = (s) => document.querySelector(s);
+    const card = (id) => cards.find(c => c.id === id);
+    const theme = (id) => themes.find(t => t.id === id);
+    const escape = (s='') => s.replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+
+    function thumb(c, cls='') { return `<div class="thumb variant-${c.v} ${cls}" aria-label="${escape(c.title)}"></div>`; }
+    function snapshot() { return { page: state.page, selectedCard: state.selectedCard, selectedTheme: state.selectedTheme, search: state.search, filters: {location:[...state.filters.location], people:[...state.filters.people], crop:[...state.filters.crop], action:[...state.filters.action], keyword:[...state.filters.keyword], status:state.filters.status}, grid: state.grid, cameraGrid: state.cameraGrid, opacity: state.opacity, mirrored: state.mirrored, timer: state.timer }; }
+    function go(page, extra={}, keepHistory=true) { const history = keepHistory && state.page !== page ? [...state.history, snapshot()] : state.history; state = {...state, page, modal: null, history, ...extra}; render(); }
+    function notify(msg) { state.toast = msg; render(); setTimeout(()=>{ state.toast=''; render(); }, 1600); }
+    function back() { const previous = state.history[state.history.length - 1]; if(previous) { state = {...state, ...previous, history: state.history.slice(0,-1), modal: null}; render(); return; } state = {...state, page:'library', modal:null}; render(); }
+    function visibleCards() {
+      if (state.proto === 'empty-library') return [];
+      if (state.proto === 'no-results') return [];
+      const q = state.search.toLowerCase();
+      const f = state.filters;
+      return cards.filter(c => {
+        const textMatches = !q || [c.title,c.note,...c.tags,...c.keywords].join(' ').toLowerCase().includes(q);
+        const locationMatches = !f.location.length || f.location.some(value=>c.tags.includes(value));
+        const peopleMatches = !f.people.length || f.people.some(value=>c.tags.includes(value));
+        const cropMatches = !f.crop.length || f.crop.some(value=>c.tags.includes(value));
+        const actionMatches = !f.action.length || f.action.some(value=>c.tags.includes(value));
+        const keywordMatches = !f.keyword.length || f.keyword.some(value=>c.keywords.includes(value));
+        const statusMatches = !f.status || (f.status==='待整理' ? !c.organized : c.organized);
+        return textMatches && locationMatches && peopleMatches && cropMatches && actionMatches && keywordMatches && statusMatches;
+      });
+    }
+    function header(title, right='') { return `<header class="flex items-center justify-between gap-2 mb-4"><button class="btn text-sm" data-action="back" aria-label="返回">←</button><h1 class="font-bold text-base flex-1 text-center">${title}</h1><div class="min-w-[42px] text-right">${right}</div></header>`; }
+    function tabs(active) { return `<nav class="tabbar" aria-label="主导航">
+      <button class="${active==='library'?'active':''}" data-nav="library">姿势库</button><button class="${active==='themes'?'active':''}" data-nav="themes">主题单</button><button class="${active==='picker'?'active':''}" data-nav="picker">照着拍</button><button class="${active==='me'?'active':''}" data-nav="me">我的</button></nav>`; }
+    function cardGrid(list, context='library') { return `<div class="grid grid-cols-2 gap-3">${list.map(c => `<button class="text-left" data-card="${c.id}" aria-label="查看${escape(c.title)}">${thumb(c)}<strong class="mt-2 block text-sm truncate">${escape(c.title)}</strong><span class="mt-1 block text-xs text-neutral-600 truncate">${escape(c.tags.slice(0,2).join(' · '))}</span></button>`).join('')}</div>`; }
+
+    function filterLabel(key, fallback) { const value=state.filters[key]; const label=Array.isArray(value)?value.join('、'):value; return label ? `${fallback}：${label}` : fallback; }
+    function libraryPage() {
+      const list = visibleCards();
+      const isEmpty = state.proto === 'empty-library';
+      const isNo = state.proto === 'no-results';
+      return `<section class="page"><header class="flex items-center justify-between mb-4"><h1 class="text-xl font-bold">姿势库</h1><button class="btn btn-dark" data-action="import">导入</button></header>
+        <label class="block border border-neutral-500 px-3 py-2 mb-3"><span class="sr-only">搜索</span><input id="search" class="w-full outline-none" value="${escape(state.search)}" placeholder="搜索地点、动作或灵感" /></label>
+        <div class="flex gap-2 overflow-x-auto pb-3"><button class="chip ${state.filters.location.length?'selected':''}" data-action="filters">${filterLabel('location','地点/点位')}</button><button class="chip ${state.filters.people.length?'selected':''}" data-action="filters">${filterLabel('people','人数')}</button><button class="chip ${state.filters.crop.length?'selected':''}" data-action="filters">${filterLabel('crop','景别')}</button><button class="chip ${state.filters.action.length?'selected':''}" data-action="filters">${filterLabel('action','动作')}</button><button class="chip ${Object.values(state.filters).some(value=>Array.isArray(value)?value.length:Boolean(value))?'selected':''}" data-action="filters">筛选</button></div>
+        ${!isEmpty && !isNo ? `<button class="w-full text-left border-y border-neutral-300 py-3 mb-4" data-action="pending">待整理 <strong>${cards.filter(c=>!c.organized).length} 张</strong><span class="float-right">→</span></button>`:''}
+        ${isEmpty ? `<div class="mt-24 text-center"><p class="font-bold">还没有灵感图</p><button class="btn btn-dark mt-3" data-action="import">导入第一张图</button></div>` : isNo ? `<div class="mt-24 text-center"><p class="font-bold">没有找到匹配的灵感</p><button class="btn mt-3" data-action="clear-search">清除筛选</button></div>` : cardGrid(list)}
+      </section>${tabs('library')}`;
+    }
+    function detailPage() { const c=card(state.selectedCard); const inThemes=themes.filter(t=>t.cardIds.includes(c.id)).map(t=>t.name).join('、') || '未加入主题单'; return `<section class="page">${header('灵感详情','<button class="btn" data-action="edit-card">编辑</button>')}
+      ${thumb(c,'h-72')}<div class="flex justify-between gap-2 mt-4"><h2 class="font-bold text-lg">${escape(c.title)}</h2>${!c.organized?'<span class="chip">待整理</span>':''}</div><section class="mt-3"><h3 class="text-xs font-bold text-neutral-600">结构化标签</h3><div class="flex flex-wrap gap-1 mt-2">${c.tags.length?c.tags.map(x=>`<span class="chip">${escape(x)}</span>`).join(''):'<span class="text-sm text-neutral-600">暂未添加</span>'}</div></section><section class="mt-3"><h3 class="text-xs font-bold text-neutral-600">拍摄关键词</h3><div class="flex flex-wrap gap-1 mt-2">${c.keywords.length?c.keywords.map(x=>`<span class="chip">${escape(x)}</span>`).join(''):'<span class="text-sm text-neutral-600">暂未添加</span>'}</div></section>
+      <p class="border-t border-neutral-300 mt-4 pt-3">${escape(c.note || '暂无备注')}</p><p class="text-sm text-neutral-600 mt-3">已加入：${escape(inThemes)}</p>
+      <div class="grid grid-cols-2 gap-3 mt-5"><button class="btn btn-dark" data-action="viewer">查看参考</button><button class="btn" data-action="theme-picker">加入主题单</button></div><div class="flex justify-end gap-2 mt-5"><button class="text-sm underline" data-action="edit-card">编辑标签</button><button class="text-sm underline" data-action="delete-card">删除</button></div>
+    </section>`; }
+    function viewerPage() { const c=card(state.selectedCard); return `<section class="page">${header('查看参考',`<button class="btn" data-action="toggle-grid">构图线 ${state.grid?'开':'关'}</button>`)}
+      <div class="thumb variant-${c.v} h-[560px] ${state.grid?'gridline':''}" aria-label="参考图与构图辅助线"></div><div class="flex justify-between items-center mt-3"><button class="text-sm underline" data-action="reference-help">查看手势提示</button><span class="text-xs text-neutral-600">参考图不会写入成片</span></div><button class="btn btn-dark w-full mt-4" data-action="camera">用手机照着拍</button>
+    </section>`; }
+    function themesPage() { const list = state.proto==='empty-themes'?[]:themes; return `<section class="page"><header class="flex justify-between items-center mb-4"><h1 class="text-xl font-bold">主题单</h1><button class="btn btn-dark" data-action="new-theme">新建 +</button></header>${list.length?`<div class="space-y-3">${list.map(t=>{const c=card(t.cardIds[0])||cards[0];return `<button class="w-full flex gap-3 border border-neutral-400 p-2 text-left" data-theme="${t.id}">${thumb(c,'w-24 min-h-[90px] shrink-0')}<span class="block min-w-0"><strong class="block text-base truncate">${escape(t.name)}</strong><span class="block text-sm text-neutral-600 whitespace-pre-line line-clamp-2 mt-1">${escape(t.people || '未填写人物与穿搭')}</span><span class="block text-xs mt-2">${t.cardIds.length} 张灵感图</span></span></button>`}).join('')}</div>`:`<div class="mt-24 text-center"><p class="font-bold">还没有主题单</p><button class="btn btn-dark mt-3" data-action="new-theme">新建主题单</button></div>`}</section>${tabs('themes')}`; }
+    function themeDetailPage() { const t=theme(state.selectedTheme); const list=t.cardIds.map(card).filter(Boolean); return `<section class="page">${header(escape(t.name),'<button class="btn" data-action="edit-theme">编辑</button>')}<section class="border-b border-neutral-300 pb-3"><h2 class="font-bold">人物与穿搭</h2><p class="whitespace-pre-line mt-1">${escape(t.people || '暂未记录人物与穿搭')}</p><h2 class="font-bold mt-4">备注</h2><p class="mt-1">${escape(t.note || '暂无备注')}</p></section><div class="flex justify-between items-center mt-4 mb-3"><h2 class="font-bold">灵感图</h2><button class="btn" data-action="add-card">添加 +</button></div>${list.length?cardGrid(list,'theme'):`<div class="text-center py-12 border border-dashed border-neutral-400"><p>还没有灵感图</p><button class="btn mt-3" data-action="add-card">添加灵感</button></div>`}<button class="text-sm underline mt-6" data-action="delete-theme">删除主题单</button></section>`; }
+    function themeFormPage() { const f=state.form; return `<section class="page">${header(state.selectedTheme?'编辑主题单':'新建主题单')}<label class="block font-bold">主题名称<input id="theme-name" class="block w-full border border-neutral-500 mt-2 p-2 font-normal" value="${escape(f.name)}" placeholder="例如：去环球影城" /></label><p id="name-error" class="text-sm mt-1 hidden">请填写主题名称</p><label class="block font-bold mt-5">人物与穿搭<textarea id="theme-people" class="block w-full border border-neutral-500 mt-2 p-2 font-normal h-24" placeholder="我：牛仔外套&#10;小夏：黑色大衣">${escape(f.people)}</textarea></label><label class="block font-bold mt-5">备注<textarea id="theme-note" class="block w-full border border-neutral-500 mt-2 p-2 font-normal h-28" placeholder="写下这次想拍的感觉或提醒">${escape(f.note)}</textarea></label><button class="btn btn-dark w-full mt-6" data-action="save-theme">保存主题单</button></section>`; }
+    function pickerPage() { const list=visibleCards(); return `<section class="page">${header('选择参考图')}<p class="text-sm text-neutral-600 mb-3">选择一张参考图后，先进入查看参考。</p>${list.length?cardGrid(list,'picker'):`<div class="mt-24 text-center"><p class="font-bold">先导入一张灵感图，再开始照着拍</p><button class="btn btn-dark mt-3" data-nav="library">去导入</button></div>`}</section>${tabs('picker')}`; }
+    function cameraPage() { if(state.proto==='camera-denied') return `<section class="page">${header('用手机照着拍')}<div class="mt-36 text-center"><h2 class="font-bold text-lg">未开启相机权限</h2><p class="mt-3">你仍可以留在查看参考，用任意设备完成拍摄。</p><div class="grid grid-cols-2 gap-3 mt-5"><button class="btn" data-action="back">继续看参考</button><button class="btn btn-dark" data-action="request-camera">再次尝试</button></div></div></section>`; const c=card(state.selectedCard); const overlayStyle=`opacity:${state.opacity/100};${state.mirrored?'transform:scaleX(-1);':''}`; return `<section class="page pb-4">${header('用手机照着拍')}<div class="relative h-[570px] border border-neutral-600 bg-neutral-300 overflow-hidden ${state.cameraGrid?'gridline':''}"><div class="absolute inset-0 opacity-30" style="background:repeating-linear-gradient(135deg,#bbb 0 12px,#ddd 12px 24px)"></div><div class="absolute border-2 border-neutral-700 top-20 left-12 right-12 bottom-20" style="${overlayStyle}">${thumb(c,'h-full')}</div><span class="absolute top-2 left-2 text-xs border border-neutral-700 bg-white px-2">实时相机画面（模拟）</span></div><div class="grid grid-cols-4 gap-2 mt-3"><button class="btn text-xs ${state.opacity!==55?'btn-dark':''}" data-action="opacity">透明 ${state.opacity}%</button><button class="btn text-xs ${state.mirrored?'btn-dark':''}" data-action="mirror">镜像 ${state.mirrored?'开':'关'}</button><button class="btn text-xs ${state.cameraGrid?'btn-dark':''}" data-action="camera-grid">构图线 ${state.cameraGrid?'开':'关'}</button><button class="btn text-xs ${state.timer?'btn-dark':''}" data-action="timer">计时 ${state.timer?state.timer+'秒':'关'}</button></div><button class="btn btn-dark w-full mt-4" data-action="shoot">拍摄</button></section>`; }
+    function resultPage() { return `<section class="page">${header('拍摄结果')}<div class="thumb h-[590px]"></div><p class="text-center mt-3">成片不包含参考图和构图辅助线</p><div class="grid grid-cols-2 gap-3 mt-5"><button class="btn" data-action="retake">重拍</button><button class="btn btn-dark" data-action="save-device">保存到设备</button></div></section>`; }
+    function mePage() { return `<section class="page"><h1 class="text-xl font-bold mb-5">我的</h1><div class="border-y border-neutral-300 divide-y divide-neutral-300"><div class="py-4"><strong>本地保存</strong><p class="mt-1 text-sm text-neutral-600">数据仅保存在当前设备。</p></div><div class="py-4"><strong>权限</strong><p class="mt-1 text-sm text-neutral-600">仅在导入或用手机拍摄时申请相册、相机权限。</p></div><div class="py-4"><strong>云同步</strong><p class="mt-1 text-sm text-neutral-600">后续能力</p></div></div></section>${tabs('me')}`; }
+
+    function modal() { if(!state.modal) return ''; if(state.modal==='filters'){const draft=state.filterDraft||state.filters;return `<div class="modal-bg"><div class="sheet"><div class="flex items-center justify-between"><h2 class="font-bold text-lg">筛选</h2><button class="btn text-sm" data-action="close-modal">关闭</button></div><div class="space-y-5 mt-5">${filterGroups.map(group=>{const selected=draft[group.key];const isSingle=group.mode==='single';const noLimit=isSingle?!selected:!selected.length;return `<section class="filter-group"><h3 class="font-bold text-sm">${group.label}</h3><div class="flex flex-wrap gap-2 mt-2"><button class="chip ${noLimit?'selected':''}" data-filter-group="${group.key}" data-filter-value="">不限</button>${group.values.map(value=>`<button class="chip ${(isSingle?selected===value:selected.includes(value))?'selected':''}" data-filter-group="${group.key}" data-filter-value="${value}">${value}</button>`).join('')}</div></section>`;}).join('')}</div><div class="grid grid-cols-2 gap-3 mt-6"><button class="btn" data-action="clear-filters">清除</button><button class="btn btn-dark" data-action="apply-filters">应用</button></div></div></div>`;}
+      if(state.modal==='theme-picker'){return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">加入主题单</h2><div class="space-y-2 mt-4">${themes.map(t=>`<label class="flex items-center gap-3 border border-neutral-300 p-3"><input type="checkbox" data-pick-theme="${t.id}" ${state.pickedThemeIds.includes(t.id)?'checked':''}/><span>${escape(t.name)}</span></label>`).join('')}</div><div class="grid grid-cols-2 gap-3 mt-6"><button class="btn" data-action="close-modal">取消</button><button class="btn btn-dark" data-action="save-theme-picks">确定</button></div></div></div>`;}
+      if(state.modal==='add-card'){return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">添加灵感</h2><button class="btn w-full text-left mt-4" data-action="pick-existing">从姿势库挑选</button><button class="btn w-full text-left mt-3" data-action="import">直接导入图片</button><button class="btn w-full mt-6" data-action="close-modal">取消</button></div></div>`;}
+      if(state.modal==='card-picker'){return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">从姿势库挑选</h2><div class="grid grid-cols-2 gap-3 mt-4">${cards.map(c=>`<button class="text-left" data-add-card="${c.id}">${thumb(c)}<strong class="block mt-1 text-sm truncate">${escape(c.title)}</strong></button>`).join('')}</div><button class="btn w-full mt-6" data-action="close-modal">完成</button></div></div>`;}
+      if(state.modal==='confirm-delete-card'||state.modal==='confirm-delete-theme'){const isCard=state.modal==='confirm-delete-card';const affected=isCard?themes.filter(t=>t.cardIds.includes(state.selectedCard)).length:0;return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">${isCard?'从姿势库删除？':'删除主题单？'}</h2><p class="mt-3">${isCard?`这张图会从姿势库删除，并从 ${affected} 个主题单移除。`:'删除主题单不会删除姿势库里的图片。'}</p><div class="grid grid-cols-2 gap-3 mt-6"><button class="btn" data-action="close-modal">取消</button><button class="btn btn-dark" data-action="${isCard?'confirm-delete-card':'confirm-delete-theme'}">确认删除</button></div></div></div>`;}
+      if(state.modal==='import'){const fromTheme=state.importFromThemeId?`保存后会自动加入「${escape(theme(state.importFromThemeId).name)}」。`:'';return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">导入灵感</h2><div class="thumb h-52 mt-4"></div><p class="mt-3 text-sm">图片是唯一必填项；标签以后再补也可以。</p>${fromTheme?`<p class="mt-2 text-sm text-neutral-600">${fromTheme}</p>`:''}<div class="grid grid-cols-2 gap-3 mt-6"><button class="btn" data-action="close-modal">取消</button><button class="btn btn-dark" data-action="simulate-import">直接保存</button></div></div></div>`;}
+      if(state.modal==='edit-card'){const d=state.draftCard;const opts=['环球影城','北京','水边','咖啡馆','单人','双人','全身','半身','回头','坐','站','喝咖啡'];return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">整理灵感</h2><section class="mt-4"><h3 class="font-bold text-sm">结构化标签 <span class="font-normal text-neutral-600">选填</span></h3><div class="flex flex-wrap gap-2 mt-2">${opts.map(x=>`<button class="chip ${d.tags.includes(x)?'selected':''}" data-edit-tag="${x}">${x}</button>`).join('')}</div></section><section class="mt-5"><h3 class="font-bold text-sm">拍摄关键词 <span class="font-normal text-neutral-600">选填</span></h3><div class="flex flex-wrap gap-2 mt-2">${d.keywords.map(x=>`<button class="chip" data-remove-keyword="${escape(x)}">${escape(x)} ×</button>`).join('')}</div><div class="flex gap-2 mt-3"><input id="keyword-input" class="min-w-0 flex-1 border border-neutral-500 p-2" placeholder="例如：毕业、香水、朋友帮拍" /><button class="btn" data-action="add-keyword">添加</button></div></section><section class="mt-5"><label class="block font-bold text-sm">备注 <span class="font-normal text-neutral-600">选填</span><textarea id="card-note" class="block h-20 w-full border border-neutral-500 mt-2 p-2 font-normal">${escape(d.note)}</textarea></label></section><div class="grid grid-cols-2 gap-3 mt-6"><button class="btn" data-action="close-modal">取消</button><button class="btn btn-dark" data-action="save-card-edit">保存</button></div></div></div>`;}
+      if(state.modal==='camera-permission'){return `<div class="modal-bg"><div class="sheet"><h2 class="font-bold text-lg">允许使用相机？</h2><p class="mt-3">仅用于把参考图叠在取景画面上；不允许也可以继续查看参考图。</p><div class="grid grid-cols-2 gap-3 mt-6"><button class="btn" data-action="camera-permission-skip">继续看参考</button><button class="btn btn-dark" data-action="camera-permission-allow">允许并继续</button></div></div></div>`;}
+      return ''; }
+    function page() { if(state.page==='library') return libraryPage(); if(state.page==='detail') return detailPage(); if(state.page==='viewer') return viewerPage(); if(state.page==='themes') return themesPage(); if(state.page==='themeDetail') return themeDetailPage(); if(state.page==='themeForm') return themeFormPage(); if(state.page==='picker') return pickerPage(); if(state.page==='camera') return cameraPage(); if(state.page==='result') return resultPage(); return mePage(); }
+    function render(){ $('#app').innerHTML = page()+modal()+(state.toast?`<div class="toast">${escape(state.toast)}</div>`:''); const s=$('#search'); if(s) s.addEventListener('input',e=>{state.search=e.target.value; render();}); }
+
+    document.addEventListener('click', e=>{
+      const b=e.target.closest('button,[data-card],[data-theme],[data-filter-group],[data-add-card],[data-edit-tag],[data-remove-keyword]'); if(!b) return;
+      if(b.dataset.proto){ const p=b.dataset.proto; if(p==='reset'){ cards=clone(seedCards); themes=clone(seedThemes); state={page:'library',selectedCard:1,selectedTheme:1,modal:null,search:'',filters:emptyFilters(),filterDraft:null,grid:false,cameraGrid:false,opacity:55,mirrored:false,timer:0,proto:'default',toast:'',form:{name:'',people:'',note:''},pickedThemeIds:[],draftCard:null,importFromThemeId:null,history:[]}; } else {state.proto=p; if(p==='empty-library'||p==='no-results') state.page='library'; if(p==='empty-themes') state.page='themes'; if(p==='camera-denied') {state.page='camera';state.history=[{...snapshot(),page:'viewer'}];}} render(); return; }
+      if(b.dataset.nav){ state.history=[]; go(b.dataset.nav,{},false); return; }
+      if(b.dataset.card){ const id=Number(b.dataset.card); if(state.page==='picker') go('viewer',{selectedCard:id}); else go('detail',{selectedCard:id}); return; }
+      if(b.dataset.theme){ go('themeDetail',{selectedTheme:Number(b.dataset.theme)}); return; }
+      if(b.dataset.filterGroup){ const key=b.dataset.filterGroup; const value=b.dataset.filterValue; const draft=state.filterDraft||clone(state.filters); if(key==='status'){state.filterDraft={...draft,status:value};}else{const current=draft[key];state.filterDraft={...draft,[key]:value?(current.includes(value)?current.filter(item=>item!==value):[...current,value]):[]};} render(); return; }
+      if(b.dataset.addCard){ const t=theme(state.selectedTheme); const id=Number(b.dataset.addCard); if(!t.cardIds.includes(id)) t.cardIds.push(id); state.modal=null; notify('已加入当前主题单'); return; }
+      if(b.dataset.editTag){ const x=b.dataset.editTag; state.draftCard.tags=state.draftCard.tags.includes(x)?state.draftCard.tags.filter(v=>v!==x):[...state.draftCard.tags,x]; render(); return; }
+      if(b.dataset.removeKeyword){ const x=b.dataset.removeKeyword; state.draftCard.keywords=state.draftCard.keywords.filter(v=>v!==x); render(); return; }
+      const a=b.dataset.action;
+      if(a==='back'){back();return;} if(a==='import'){state.importFromThemeId=state.modal==='add-card'?state.selectedTheme:null;state.modal='import';render();return;} if(a==='pending'){state.filters={...emptyFilters(),status:'待整理'};state.search='';render();return;} if(a==='filters'){state.filterDraft=clone(state.filters);state.modal='filters';render();return;} if(a==='clear-search'){state.search='';state.filters=emptyFilters();state.filterDraft=null;state.proto='default';render();return;} if(a==='apply-filters'){state.filters=state.filterDraft||emptyFilters();state.filterDraft=null;state.modal=null;render();return;} if(a==='close-modal'){if(state.modal==='edit-card')state.draftCard=null;if(state.modal==='import')state.importFromThemeId=null;if(state.modal==='filters')state.filterDraft=null;state.modal=null;render();return;}
+      if(a==='clear-filters'){state.filterDraft=emptyFilters();render();return;} if(a==='viewer'){go('viewer');return;} if(a==='camera'||a==='request-camera'){if(state.proto==='camera-denied'){go('camera');}else{state.modal='camera-permission';render();}return;} if(a==='camera-permission-allow'){state.modal=null;go('camera');return;} if(a==='camera-permission-skip'){state.modal=null;render();return;} if(a==='toggle-grid'){state.grid=!state.grid;render();return;} if(a==='reference-help'){notify('双指缩放，拖动查看细节');return;} if(a==='theme-picker'){const c=card(state.selectedCard);state.pickedThemeIds=themes.filter(t=>t.cardIds.includes(c.id)).map(t=>t.id);state.modal='theme-picker';render();return;}
+      if(a==='save-theme-picks'){const c=card(state.selectedCard);themes.forEach(t=>{const should=state.pickedThemeIds.includes(t.id);const has=t.cardIds.includes(c.id);if(should&&!has)t.cardIds.push(c.id);if(!should&&has)t.cardIds=t.cardIds.filter(id=>id!==c.id);});state.modal=null;notify('已更新主题单');return;}
+      if(a==='new-theme'){state.form={name:'',people:'',note:''};state.selectedTheme=null;go('themeForm');return;} if(a==='edit-theme'){const t=theme(state.selectedTheme);state.form={name:t.name,people:t.people,note:t.note};go('themeForm');return;} if(a==='save-theme'){const name=$('#theme-name').value.trim(); if(!name){$('#name-error').classList.remove('hidden');return;} const people=$('#theme-people').value; const note=$('#theme-note').value; if(state.selectedTheme){Object.assign(theme(state.selectedTheme),{name,people,note});go('themeDetail',{},false);notify('已保存主题单');} else {const id=Date.now();themes.unshift({id,name,people,note,cardIds:[]});go('themeDetail',{selectedTheme:id},false);notify('已创建主题单');}return;}
+      if(a==='add-card'){state.modal='add-card';render();return;} if(a==='pick-existing'){state.modal='card-picker';render();return;} if(a==='delete-card'){state.modal='confirm-delete-card';render();return;} if(a==='delete-theme'){state.modal='confirm-delete-theme';render();return;} if(a==='confirm-delete-card'){const id=state.selectedCard; cards.splice(cards.findIndex(c=>c.id===id),1);themes.forEach(t=>t.cardIds=t.cardIds.filter(x=>x!==id));back();notify('已从姿势库删除，并移出相关主题单');return;} if(a==='confirm-delete-theme'){themes=themes.filter(t=>t.id!==state.selectedTheme);go('themes',{},false);notify('已删除主题单');return;}
+      if(a==='edit-card'){const c=card(state.selectedCard);state.draftCard={tags:[...c.tags],keywords:[...c.keywords],note:c.note};state.modal='edit-card';render();return;} if(a==='add-keyword'){const input=$('#keyword-input');const keyword=input.value.trim();if(keyword&&!state.draftCard.keywords.includes(keyword)){state.draftCard.keywords.push(keyword);}render();return;} if(a==='save-card-edit'){const c=card(state.selectedCard);c.tags=[...state.draftCard.tags];c.keywords=[...state.draftCard.keywords];c.note=$('#card-note').value;c.organized=true;state.draftCard=null;state.modal=null;render();notify('已保存整理内容');return;} if(a==='simulate-import'){const id=Date.now();const fromTheme=state.importFromThemeId;cards.unshift({id,title:'新导入的灵感图',tags:[],keywords:[],note:'',v:3,organized:false});state.modal=null;state.importFromThemeId=null;if(fromTheme){const t=theme(fromTheme);if(!t.cardIds.includes(id))t.cardIds.unshift(id);go('themeDetail',{selectedTheme:fromTheme},false);notify('已存入姿势库并加入当前主题单');}else{go('detail',{selectedCard:id});notify('已存入姿势库，可稍后整理');}return;} if(a==='opacity'){state.opacity=state.opacity>=80?25:state.opacity+25;render();return;} if(a==='mirror'){state.mirrored=!state.mirrored;render();return;} if(a==='camera-grid'){state.cameraGrid=!state.cameraGrid;render();return;} if(a==='timer'){state.timer=state.timer===0?3:state.timer===3?5:0;render();return;} if(a==='shoot'){go('result');return;} if(a==='retake'){go('camera');return;} if(a==='save-device'){notify('已触发系统保存/分享（原型模拟）');return;}
+    });
+    document.addEventListener('change',e=>{ if(e.target.matches('[data-pick-theme]')){const id=Number(e.target.dataset.pickTheme);state.pickedThemeIds=e.target.checked?[...state.pickedThemeIds,id]:state.pickedThemeIds.filter(x=>x!==id);} });
+    render();
+  </script>
+</body>
+</html>
